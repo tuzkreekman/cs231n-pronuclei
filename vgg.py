@@ -20,17 +20,21 @@ def parse_args():
     parser.add_argument("-lr", help="learning rate", default=1e-7)
     parser.add_argument("-out_classes", help="number of output classes", default=5)
     parser.add_argument("-num_epochs", help="number of output classes", default=25)
+    parser.add_argument("-freeze", help="freeze weights while training", default="False")
+    parser.add_argument("-bsize", help="batch size", default=4)
     args = parser.parse_args()
 
-    return args.data, float(args.lr), int(args.out_classes), int(args.num_epochs)
+    return args.data, float(args.lr), int(args.out_classes), int(args.num_epochs), bool(args.freeze), int(args.bsize)
 
-def transform_data(data_path):
+def transform_data(data_path, b_size):
     data_transforms = {
         'train': transforms.Compose([
             transforms.RandomRotation((-45, 45)),
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
             transforms.ToTensor(),
+            transforms.ColorJitter(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         'val': transforms.Compose([
@@ -44,7 +48,7 @@ def transform_data(data_path):
     image_datasets = {x: datasets.ImageFolder(os.path.join(path2Data, x),
                                               data_transforms[x])
                       for x in ['train', 'val']}
-    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=4,
+    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=b_size,
                                                   shuffle=True, num_workers=4)
                    for x in ['train', 'val']}
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
@@ -136,10 +140,13 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs, dataloaders,
     model.load_state_dict(best_model_wts)
     return model
 
-def makeModel(device, learn_rate, pretrained=True, outFeatures=5):
+def makeModel(device, learn_rate, pretrained=True, outFeatures=5, frozenWeights=False):
     model_ft = models.vgg16_bn(pretrained=True)
     num_ftrs = model_ft.classifier[6].in_features
     features = list(model_ft.classifier.children())[:-1]
+    if frozenWeights:
+        for param in model_ft.features.parameters():
+            param.require_grad = False
     features.extend([nn.Linear(num_ftrs, outFeatures)])
     model_ft.classifier = nn.Sequential(*features)
     model_ft = model_ft.to(device)
@@ -148,10 +155,10 @@ def makeModel(device, learn_rate, pretrained=True, outFeatures=5):
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
     return model_ft, criterion, optimizer_ft, exp_lr_scheduler
 def main():
-    dataPath, learn_rate, out_classes, num_epochs = parse_args()
-    dataloaders, dataset_sizes, class_names, device = transform_data(dataPath)
+    dataPath, learn_rate, out_classes, num_epochs, freeze_weights, batch_size = parse_args()
+    dataloaders, dataset_sizes, class_names, device = transform_data(dataPath, batch_size)
     model_ft, criterion, optimizer_ft, exp_lr_scheduler = makeModel(device, learn_rate,
-                                                                    True, out_classes)
+                                                                    True, out_classes, freeze_weights)
     model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                            num_epochs, dataloaders, device, dataset_sizes)
 if __name__ == "__main__":
