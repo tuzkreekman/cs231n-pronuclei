@@ -6,8 +6,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from scipy.misc import imresize
 
-def imshow(inp, title=None):
+def imshow(inp):
     """Imshow for Tensor."""
     inp /= 255
     inp = inp.numpy().transpose((1, 2, 0))
@@ -16,24 +17,19 @@ def imshow(inp, title=None):
     inp = std * inp + mean
     inp = np.clip(inp, 0, 1)
     plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
     plt.pause(0.001)  # pause a bit so that plots are updated
     
-def imshowimagemasked(img, mask, title=None, plot_original=False):
+def imshowimagemasked(img, mask):
     """Imshow for Tensor."""
-    inp = img
+    inp = img/255
     inp = inp.numpy().transpose((1, 2, 0))
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
     inp = std * inp + mean
     inp = np.clip(inp, 0, 1)
-    if plot_original:
-        plt.imshow(inp)
-    plt.imshow(mask.numpy(), alpha=.2) #,cmap='jet',alpha=0.2)
+    plt.imshow(inp)
+    plt.imshow(imresize(mask.numpy(), inp.shape), cmap='jet',alpha=0.2)
     plt.axis('off')
-    if title is not None:
-        plt.title(title)
     plt.pause(0.001)  # pause a bit so that plots are updated
     
 def visualize_segmenter(model, dataloader, device, num_images=6):
@@ -56,7 +52,7 @@ def visualize_segmenter(model, dataloader, device, num_images=6):
                 images_so_far += 1
                 imshow(inputs.cpu().data[j])
                 
-                imshowimagemasked(inputs.cpu().data[j], preds.cpu().data[j], plot_original=is_deeplab)
+                imshowimagemasked(inputs.cpu().data[j], preds.cpu().data[j])
 
                 if images_so_far == num_images:
                     model.train(mode=was_training)
