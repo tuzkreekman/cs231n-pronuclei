@@ -63,7 +63,8 @@ def visualize_counting_errors(model, dataloader, device, num_images=6):
     was_training = model.training
     model.eval()
     images_so_far = 0
-    fig = plt.figure()
+    
+    f, axs = plt.subplots(num_images,3,figsize=(5,10),sharex='col',sharey='col')
 
     with torch.no_grad():
         for i, (inputs, labels) in enumerate(dataloader):
@@ -83,17 +84,35 @@ def visualize_counting_errors(model, dataloader, device, num_images=6):
 
                 if counts_p!=counts_g:
                     images_so_far += 1
-                    imshow(inputs.cpu().data[j])
-                    plt.imshow(bw_p)
-                    plt.title('Predictions')
-                    plt.pause(0.001)
-                    plt.imshow(bw_g)
-                    plt.title('Ground Truth')
-                    plt.pause(0.001)
-                    print('Really have',counts_g,'but predicted',counts_p)
+
+
+                    inp = inputs.cpu().data[j].numpy().transpose((1, 2, 0))/255
+                    ax = axs[images_so_far-1, 0]
+                    ax.imshow(inp)
+                    ax.axis('off')
+                    if images_so_far==1:
+                        ax.set_title('Original')
+    
+                    ax = axs[images_so_far-1, 1]
+                    ax.imshow(bw_p)
+                    ax.axis('off')
+                    if images_so_far==1:
+                        ax.set_title('Predictions')
+                    
+                    
+                    ax = axs[images_so_far-1, 2]
+                    ax.imshow(bw_g)
+                    ax.axis('off')
+                    if images_so_far==1:
+                        ax.set_title('Ground Truth')
+                    
+                    #print('Really have',counts_g,'but predicted',counts_p)
 
                     if images_so_far == num_images:
                         model.train(mode=was_training)
+                        plt.pause(0.001)
+
                         return
-                
+        plt.pause(0.001)
+
         model.train(mode=was_training)
