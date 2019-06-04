@@ -8,26 +8,29 @@ from segmentation_utils import *
 # adapted code
 from plotting import *
 # own code
-from scoring import iou
+from scoring import iou, aed
 
 def score_segmenter(model, dataloaders, device):
     was_training = model.training
     model.eval()
-    running_score=0
+    running_iou=0
+    running_aed=0
     num_imgs = 0
     with torch.no_grad():
         for i, (inputs, labels) in enumerate(dataloaders['val']):
             inputs = inputs.to(device)
             labels = labels.to(device)
             outputs = model(inputs)
+            outputs = torch.sigmoid(outputs)
             
-            #print(iou(outputs, labels),labels.shape)
-            running_score += iou(outputs, labels).sum() 
+            running_iou += iou(outputs, labels).sum() 
+            running_aed += aed(outputs, labels).sum() 
             num_imgs += inputs.shape[0]
         
-        running_score /= num_imgs #len(dataloaders['val'])
+        running_iou /= num_imgs 
+        running_aed /= num_imgs
         model.train(mode=was_training)
-    return running_score
+    return (running_iou,running_aed)
 
 class Dataset(object):
     def __init__(self, datapath, image_size=224, mask_size=224, is_deeplab=False):
