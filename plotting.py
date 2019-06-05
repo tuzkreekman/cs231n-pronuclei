@@ -13,21 +13,13 @@ def imshow(inp):
     """Imshow for Tensor."""
     inp /= 255
     inp = inp.numpy().transpose((1, 2, 0))
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-    inp = std * inp + mean
-    inp = np.clip(inp, 0, 1)
     plt.imshow(inp)
     plt.pause(0.001)  # pause a bit so that plots are updated
     
 def imshowimagemasked(img, mask, title=None):
-    """Imshow for Tensor."""
+    """Imshow for Tensor with overlayed masks."""
     inp = img/255
     inp = inp.numpy().transpose((1, 2, 0))
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-    inp = std * inp + mean
-    inp = np.clip(inp, 0, 1)
     plt.imshow(inp)
     plt.imshow(imresize(mask.numpy(), inp.shape), cmap='jet',alpha=0.2)
     plt.axis('off')
@@ -58,13 +50,36 @@ def visualize_segmenter(model, dataloader, device, num_images=6):
                     model.train(mode=was_training)
                     return
         model.train(mode=was_training)
+
+def pretty_plot_segmenter(model, dataloader, device, num_images=4):
+    was_training = model.training
+    model.eval()
+    images_so_far = 0
+    fig = plt.figure()
+
+    with torch.no_grad():
+        for i, (inputs, labels) in enumerate(dataloader):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            outputs = model(inputs)
+            preds = torch.sigmoid(outputs)[:,0]
+
+            for j in range(inputs.size()[0]):
+                images_so_far += 1
+                imshowimagemasked(inputs.cpu().data[j], preds.cpu().data[j])
+
+                if images_so_far == num_images:
+                    model.train(mode=was_training)
+                    return
+        model.train(mode=was_training)
         
 def visualize_counting_errors(model, dataloader, device, num_images=6):
     was_training = model.training
     model.eval()
     images_so_far = 0
     
-    f, axs = plt.subplots(num_images,3,figsize=(5,10),sharex='col',sharey='col')
+    f, axs = plt.subplots(num_images,3,figsize=(5,5.0*num_images/3),sharex='col',sharey='col')
 
     with torch.no_grad():
         for i, (inputs, labels) in enumerate(dataloader):
